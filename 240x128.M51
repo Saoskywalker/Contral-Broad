@@ -1,0 +1,204 @@
+BL51 BANKED LINKER/LOCATER V6.22                                                        03/30/2017  11:25:22  PAGE 1
+
+
+BL51 BANKED LINKER/LOCATER V6.22, INVOKED BY:
+C:\KEIL\C51\BIN\BL51.EXE STARTUP.obj, 240x128.obj, key.obj TO 240x128 RAMSIZE (256)
+
+
+MEMORY MODEL: SMALL
+
+
+INPUT MODULES INCLUDED:
+  STARTUP.obj (?C_STARTUP)
+  240x128.obj (240X128)
+  key.obj (KEY)
+  C:\KEIL\C51\LIB\C51S.LIB (?C_INIT)
+  C:\KEIL\C51\LIB\C51S.LIB (?C?SCDIV)
+  C:\KEIL\C51\LIB\C51S.LIB (?C?CLDPTR)
+  C:\KEIL\C51\LIB\C51S.LIB (?C?CLDOPTR)
+  C:\KEIL\C51\LIB\C51S.LIB (?C?CSTPTR)
+  C:\KEIL\C51\LIB\C51S.LIB (?C?CSTOPTR)
+  C:\KEIL\C51\LIB\C51S.LIB (?C?CCASE)
+  C:\KEIL\C51\LIB\C51S.LIB (?C?ICASE)
+
+
+LINK MAP OF MODULE:  240x128 (?C_STARTUP)
+
+
+            TYPE    BASE      LENGTH    RELOCATION   SEGMENT NAME
+            -----------------------------------------------------
+
+            * * * * * * *   D A T A   M E M O R Y   * * * * * * *
+            REG     0000H     0008H     ABSOLUTE     "REG BANK 0"
+            DATA    0008H     0006H     UNIT         ?DT?_DELAYUS?240X128
+            DATA    000EH     0004H     UNIT         ?DT?_WRITE_DATE?240X128
+            DATA    0012H     0003H     UNIT         ?DT?MAIN?240X128
+            DATA    0015H     0002H     UNIT         ?DT?DIS_TIME?240X128
+                    0017H     0001H                  *** GAP ***
+            REG     0018H     0008H     ABSOLUTE     "REG BANK 3"
+            BIT     0020H.0   0000H.2   UNIT         ?BI?240X128
+                    0020H.2   0000H.6                *** GAP ***
+            DATA    0021H     002BH     UNIT         ?DT?240X128
+            DATA    004CH     0002H     UNIT         ?DT?MAIN_PICTURE?240X128
+            DATA    004EH     0002H     UNIT         ?DT?BODY_PICTURE?240X128
+            DATA    0050H     0002H     UNIT         ?DT?FACE_PICTURE?240X128
+            DATA    0052H     0002H     UNIT         ?DT?COOLING_PICTURE?240X128
+            DATA    0054H     0002H     UNIT         ?DT?EYES_PICTURE?240X128
+            DATA    0056H     0002H     UNIT         ?DT?BIO_PICTURE?240X128
+            DATA    0058H     0002H     UNIT         ?DT?BIO222_PICTURE?240X128
+            IDATA   005AH     0001H     UNIT         ?STACK
+
+            * * * * * * *   C O D E   M E M O R Y   * * * * * * *
+            CODE    0000H     0003H     ABSOLUTE     
+            CODE    0003H     0001H     UNIT         ?PR?TIME1?240X128
+                    0004H     0007H                  *** GAP ***
+            CODE    000BH     0003H     ABSOLUTE     
+            CODE    000EH     000CH     UNIT         ?PR?BEEP?240X128
+                    001AH     0001H                  *** GAP ***
+            CODE    001BH     0003H     ABSOLUTE     
+                    001EH     0005H                  *** GAP ***
+            CODE    0023H     0003H     ABSOLUTE     
+            CODE    0026H     0015H     UNIT         ?PR?UART2?240X128
+BL51 BANKED LINKER/LOCATER V6.22                                                      03/30/2017  11:25:22  PAGE 2
+
+
+                    003BH     0008H                  *** GAP ***
+            CODE    0043H     0003H     ABSOLUTE     
+            CODE    0046H     0142H     UNIT         ?PR?COM_INTERRUPT?240X128
+            CODE    0188H     00EFH     UNIT         ?C?LIB_CODE
+            CODE    0277H     00E8H     UNIT         ?PR?BIO222_PICTURE?240X128
+            CODE    035FH     00D8H     UNIT         ?PR?FACE_PICTURE?240X128
+            CODE    0437H     00D8H     UNIT         ?PR?COOLING_PICTURE?240X128
+            CODE    050FH     00D8H     UNIT         ?PR?EYES_PICTURE?240X128
+            CODE    05E7H     00B9H     UNIT         ?PR?BODY_PICTURE?240X128
+            CODE    06A0H     008CH     UNIT         ?C_C51STARTUP
+            CODE    072CH     0084H     UNIT         ?PR?BIO_PICTURE?240X128
+            CODE    07B0H     0067H     UNIT         ?PR?MAIN_PICTURE?240X128
+            CODE    0817H     0061H     UNIT         ?PR?DEAL_TM?240X128
+            CODE    0878H     005AH     UNIT         ?PR?_WRITE_DATE?240X128
+            CODE    08D2H     0051H     UNIT         ?PR?MAIN?240X128
+            CODE    0923H     0045H     UNIT         ?PR?DIS_TIME?240X128
+            CODE    0968H     003EH     UNIT         ?PR?TIME0?240X128
+            CODE    09A6H     003BH     UNIT         ?PR?_DELAYUS?240X128
+            CODE    09E1H     0038H     UNIT         ?C_INITSEG
+            CODE    0A19H     0030H     UNIT         ?PR?BEEPLONG?240X128
+            CODE    0A49H     002EH     UNIT         ?PR?CPU_INIT?240X128
+            CODE    0A77H     002CH     UNIT         ?PR?GOTOVIDEO?240X128
+            CODE    0AA3H     002CH     UNIT         ?PR?EXITVIDEO?240X128
+
+
+
+OVERLAY MAP OF MODULE:   240x128 (?C_STARTUP)
+
+
+SEGMENT
+  +--> CALLED SEGMENT
+---------------------
+?C_C51STARTUP
+  +--> ?PR?MAIN?240X128
+  +--> ?C_INITSEG
+
+?PR?MAIN?240X128
+  +--> ?PR?CPU_INIT?240X128
+  +--> ?PR?BEEP?240X128
+  +--> ?PR?MAIN_PICTURE?240X128
+  +--> ?PR?BODY_PICTURE?240X128
+  +--> ?PR?FACE_PICTURE?240X128
+  +--> ?PR?COOLING_PICTURE?240X128
+  +--> ?PR?BIO_PICTURE?240X128
+  +--> ?PR?EYES_PICTURE?240X128
+
+?PR?BEEP?240X128
+  +--> ?PR?_DELAYUS?240X128
+
+?PR?MAIN_PICTURE?240X128
+  +--> ?PR?_WRITE_DATE?240X128
+  +--> ?PR?BEEP?240X128
+
+?PR?BODY_PICTURE?240X128
+  +--> ?PR?_WRITE_DATE?240X128
+  +--> ?PR?DEAL_TM?240X128
+  +--> ?PR?BEEP?240X128
+BL51 BANKED LINKER/LOCATER V6.22                                                      03/30/2017  11:25:22  PAGE 3
+
+
+  +--> ?PR?DIS_TIME?240X128
+
+?PR?DEAL_TM?240X128
+  +--> ?PR?_WRITE_DATE?240X128
+  +--> ?PR?BEEPLONG?240X128
+  +--> ?PR?DIS_TIME?240X128
+
+?PR?BEEPLONG?240X128
+  +--> ?PR?_DELAYUS?240X128
+
+?PR?DIS_TIME?240X128
+  +--> ?PR?_WRITE_DATE?240X128
+
+?PR?FACE_PICTURE?240X128
+  +--> ?PR?_WRITE_DATE?240X128
+  +--> ?PR?DEAL_TM?240X128
+  +--> ?PR?BEEP?240X128
+  +--> ?PR?DIS_TIME?240X128
+
+?PR?COOLING_PICTURE?240X128
+  +--> ?PR?_WRITE_DATE?240X128
+  +--> ?PR?DEAL_TM?240X128
+  +--> ?PR?BEEP?240X128
+  +--> ?PR?DIS_TIME?240X128
+
+?PR?BIO_PICTURE?240X128
+  +--> ?PR?GOTOVIDEO?240X128
+  +--> ?PR?DEAL_TM?240X128
+  +--> ?PR?EXITVIDEO?240X128
+  +--> ?PR?BEEP?240X128
+
+?PR?EYES_PICTURE?240X128
+  +--> ?PR?_WRITE_DATE?240X128
+  +--> ?PR?DEAL_TM?240X128
+  +--> ?PR?BEEP?240X128
+  +--> ?PR?DIS_TIME?240X128
+
+
+
+SYMBOL TABLE OF MODULE:  240x128 (?C_STARTUP)
+
+  VALUE           TYPE          NAME
+  ----------------------------------
+
+  -------         MODULE        ?C?SCDIV
+  C:0188H         PUBLIC        ?C?SCDIV
+  -------         ENDMOD        ?C?SCDIV
+
+  -------         MODULE        ?C?CLDPTR
+  C:01AAH         PUBLIC        ?C?CLDPTR
+  -------         ENDMOD        ?C?CLDPTR
+
+  -------         MODULE        ?C?CLDOPTR
+  C:01C3H         PUBLIC        ?C?CLDOPTR
+  -------         ENDMOD        ?C?CLDOPTR
+
+  -------         MODULE        ?C?CSTPTR
+BL51 BANKED LINKER/LOCATER V6.22                                                      03/30/2017  11:25:22  PAGE 4
+
+
+  C:01F0H         PUBLIC        ?C?CSTPTR
+  -------         ENDMOD        ?C?CSTPTR
+
+  -------         MODULE        ?C?CSTOPTR
+  C:0202H         PUBLIC        ?C?CSTOPTR
+  -------         ENDMOD        ?C?CSTOPTR
+
+  -------         MODULE        ?C?CCASE
+  C:0224H         PUBLIC        ?C?CCASE
+  -------         ENDMOD        ?C?CCASE
+
+  -------         MODULE        ?C?ICASE
+  C:024AH         PUBLIC        ?C?ICASE
+  -------         ENDMOD        ?C?ICASE
+
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?BIO222_PICTURE?240X128
+
+Program Size: data=89.2 xdata=0 code=2746
+LINK/LOCATE RUN COMPLETE.  1 WARNING(S),  0 ERROR(S)

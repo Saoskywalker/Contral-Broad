@@ -1,0 +1,5 @@
+"STARTUP.obj",
+"240x128.obj",
+"key.obj" 
+TO "S1S2水瓶带水位检测水雕上板程序170701" 
+RAMSIZE(256) 

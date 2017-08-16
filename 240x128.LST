@@ -1,0 +1,1038 @@
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE 240X128
+OBJECT MODULE PLACED IN 240x128.OBJ
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE 240x128.C OPTIMIZE(0,SPEED) BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          /*模拟时序*/
+   2          //#include<reg51.h>
+   3          #include<STC12C5A60S2.h>
+   4          #include "uart.h"
+   5          extern void delayus(unsigned int n);
+   6          
+   7          
+   8          sbit beep=P4^4;
+   9          sbit shaping_DCF = P0^0;  //控制水氧笔三通电磁阀
+  10          sbit sonic_DCF   = P0^1;  //控制喷枪三通电磁阀
+  11          sbit pump        = P0^2;  //控制气泵
+  12          sbit s1_s2       = P0^3;  //控制水瓶S1,S2
+  13          sbit wate_sw =P2^0; //水位检测
+  14          
+  15          sbit LED_B =P0^6;  //S1水瓶灯  低电平有效
+  16          sbit LED_G =P0^7;  //S2水瓶灯  低电平有效
+  17          
+  18          unsigned int  wate_time=0; //水位检测计时
+  19          unsigned int  beep_time=0;
+  20          unsigned char bee_delay=0;
+  21          bit beep_sw=0;
+  22          bit FS_ONE=0;
+  23          
+  24          bit  china_english=0; //中英文界面
+  25          char CE_buffer=0;
+  26          char cut_buff=0;      //中英文界面
+  27          char minute=30,second=0;
+  28          char Page=0;
+  29          char on_off=0; 
+  30          bit time_out=0;
+  31          bit deal_tm_bit=0;
+  32          char TT_bit=0;
+  33          char key_bit=0;
+  34          char vac_mode=0;
+  35          char RF=0;
+  36          char cooling=0;
+  37          char RF1=0;
+  38          char Get_Date[4];  //3:2 0040地址 1:0  30：00分钟
+  39          char Buffer[20];
+  40          char *pp=Buffer;
+  41          char xx=0;
+  42          char DD=0;
+  43          char W_OR_R=0;
+  44          char count_RF=0;
+  45          int  time_count=0;
+  46          
+  47          void delayus(unsigned int n)
+  48          {
+  49   1        unsigned int i=0,j=0;
+  50   1        for(;i<n;i++)
+  51   1          for(;j<124;j++); 
+  52   1      }
+  53          void BeepLong()
+  54          {
+  55   1        beep=0;
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 2   
+
+  56   1        delayus(40000);
+  57   1        beep=1;
+  58   1        delayus(40000);
+  59   1        beep=0;
+  60   1        delayus(40000);
+  61   1        beep=1;
+  62   1        delayus(40000);
+  63   1        beep=0;
+  64   1        delayus(40000);
+  65   1        beep=1;
+  66   1      }
+  67          
+  68          void BEEP()
+  69          {
+  70   1        if(!beep)
+  71   1        {
+  72   2          bee_delay++;     //?????  
+  73   2        }
+  74   1        if(bee_delay>=100)     //????????
+  75   1        {    
+  76   2          beep=1;   
+  77   2          bee_delay=0;              
+  78   2        } 
+  79   1      }
+  80          //蜂鸣器响一声
+  81          void BEEP_wate()
+  82          {
+  83   1        if(++beep_time>40000){beep_time=0;}
+  84   1        if(beep_time>=35000)     //????????
+  85   1        {    
+  86   2          beep=0;   
+  87   2        } 
+  88   1        else{ beep=1;}   
+  89   1      }
+  90          
+  91          void Write_date(char address1,char address2,char usedata1,char usedata2){
+  92   1      
+  93   1        //SBUF=0x00;
+  94   1        //  while(!TT_bit);
+  95   1        // TT_bit=0;
+  96   1        TT_bit=0;
+  97   1        SBUF=0x5A;
+  98   1      
+  99   1        while(!TT_bit);
+ 100   1        TT_bit=0;
+ 101   1        SBUF=0xA5;
+ 102   1        while(!TT_bit);
+ 103   1        TT_bit=0;
+ 104   1        SBUF=0x05;
+ 105   1        while(!TT_bit);
+ 106   1        TT_bit=0;
+ 107   1        SBUF=0x82;
+ 108   1        while(!TT_bit);
+ 109   1        TT_bit=0;
+ 110   1        SBUF=address1;
+ 111   1        while(!TT_bit);
+ 112   1        TT_bit=0;
+ 113   1        SBUF=address2;
+ 114   1        while(!TT_bit);
+ 115   1        TT_bit=0;
+ 116   1        SBUF=usedata1;
+ 117   1        while(!TT_bit);
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 3   
+
+ 118   1        TT_bit=0;
+ 119   1        SBUF=usedata2;
+ 120   1        while(!TT_bit);
+ 121   1        TT_bit=0;
+ 122   1      }
+ 123          void sendOneByte(char t)
+ 124          {
+ 125   1        TT_bit=0;
+ 126   1        SBUF = t;
+ 127   1        while(!TT_bit);
+ 128   1      }
+ 129          void cutP_work_stop(char pic_id)
+ 130          {
+ 131   1      
+ 132   1        //5aa5 15 82 00b0  00 06 0001 0000 01 00 01 00 03 00 02 00 01 00 01 00
+ 133   1      
+ 134   1        sendOneByte(0X5AA5/256); 
+ 135   1        sendOneByte(0X5AA5%256);
+ 136   1        sendOneByte(21);
+ 137   1        sendOneByte(0x82);
+ 138   1        sendOneByte(0);
+ 139   1        sendOneByte(0x70);     //0xB0显示动画图标的地址 
+ 140   1        sendOneByte(0);
+ 141   1        sendOneByte(6);     //0006代表图片剪切、粘贴
+ 142   1        sendOneByte(0);
+ 143   1        sendOneByte(1);     //只有1个数据包
+ 144   1        sendOneByte(0);
+ 145   1        sendOneByte(pic_id);   //粘贴第pic_id页的图片 5/7
+ 146   1        sendOneByte(70/256);
+ 147   1        sendOneByte(70%256);  
+ 148   1        sendOneByte(470/256);
+ 149   1        sendOneByte(470%256); 
+ 150   1        sendOneByte(180/256);
+ 151   1        sendOneByte(180%256); 
+ 152   1        sendOneByte(570/256);
+ 153   1        sendOneByte(570%256);
+ 154   1        sendOneByte(70/256);
+ 155   1        sendOneByte(70%256);  
+ 156   1        sendOneByte(470/256);
+ 157   1        sendOneByte(470%256);
+ 158   1        TT_bit=0;
+ 159   1      }
+ 160          void cutP_S1_S2(char pic_id)
+ 161          {
+ 162   1      
+ 163   1        //5aa5 15 82 00b0  00 06 0001 0000 01 00 01 00 03 00 02 00 01 00 01 00
+ 164   1      
+ 165   1        sendOneByte(0X5AA5/256); 
+ 166   1        sendOneByte(0X5AA5%256);
+ 167   1        sendOneByte(21);
+ 168   1        sendOneByte(0x82);
+ 169   1        sendOneByte(0);
+ 170   1        sendOneByte(0x90);     //0xB0显示动画图标的地址 
+ 171   1        sendOneByte(0);
+ 172   1        sendOneByte(6);     //0006代表图片剪切、粘贴
+ 173   1        sendOneByte(0);
+ 174   1        sendOneByte(1);     //只有1个数据包
+ 175   1        sendOneByte(0);
+ 176   1        sendOneByte(pic_id);   //粘贴第pic_id页的图片 5/7
+ 177   1        sendOneByte(500/256);
+ 178   1        sendOneByte(500%256); 
+ 179   1        sendOneByte(385/256);
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 4   
+
+ 180   1        sendOneByte(385%256); 
+ 181   1        sendOneByte(700/256);
+ 182   1        sendOneByte(700%256); 
+ 183   1        sendOneByte(485/256);
+ 184   1        sendOneByte(485%256);
+ 185   1        sendOneByte(500/256);
+ 186   1        sendOneByte(500%256); 
+ 187   1        sendOneByte(385/256);
+ 188   1        sendOneByte(385%256); 
+ 189   1        TT_bit=0;
+ 190   1      }
+ 191          void cutP_wate_HL(char pic_id)  //水位检测图标
+ 192          {
+ 193   1      
+ 194   1        //5aa5 15 82 00b0  00 06 0001 0000 01 00 01 00 03 00 02 00 01 00 01 00
+ 195   1      
+ 196   1        sendOneByte(0X5AA5/256); 
+ 197   1        sendOneByte(0X5AA5%256);
+ 198   1        sendOneByte(21);
+ 199   1        sendOneByte(0x82);
+ 200   1        sendOneByte(0);
+ 201   1        sendOneByte(0x80);     //0xB0显示动画图标的地址 
+ 202   1        sendOneByte(0);
+ 203   1        sendOneByte(6);     //0006代表图片剪切、粘贴
+ 204   1        sendOneByte(0);
+ 205   1        sendOneByte(1);     //只有1个数据包
+ 206   1        sendOneByte(0);
+ 207   1        sendOneByte(pic_id);   //粘贴第pic_id页的图片 5/7
+ 208   1        sendOneByte(505/256);
+ 209   1        sendOneByte(505%256); 
+ 210   1      
+ 211   1        sendOneByte(489/256);
+ 212   1        sendOneByte(489%256); 
+ 213   1      
+ 214   1        sendOneByte(782/256);
+ 215   1        sendOneByte(782%256); 
+ 216   1      
+ 217   1        sendOneByte(587/256);
+ 218   1        sendOneByte(587%256);
+ 219   1      
+ 220   1        sendOneByte(505/256);
+ 221   1        sendOneByte(505%256); 
+ 222   1        sendOneByte(489/256);
+ 223   1        sendOneByte(489%256); 
+ 224   1        TT_bit=0;
+ 225   1      }
+ 226          /**************发送指令让屏的界面跳转*******/
+ 227          void jumpPageTo(unsigned char j)
+ 228          {
+ 229   1        sendOneByte(0X5AA5/256);//跳转到工作界面--03号页面  
+ 230   1        sendOneByte(0X5AA5%256); 
+ 231   1        sendOneByte(0x04);
+ 232   1        sendOneByte(0x80);
+ 233   1        sendOneByte(0x03);
+ 234   1        sendOneByte(0x00);
+ 235   1        sendOneByte(j); 
+ 236   1      }  
+ 237          void GoToVideo(){
+ 238   1      
+ 239   1        TT_bit=0;
+ 240   1        SBUF=0xaa;
+ 241   1      
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 5   
+
+ 242   1        while(!TT_bit);
+ 243   1        TT_bit=0;
+ 244   1        SBUF=0xbb;
+ 245   1        while(!TT_bit);
+ 246   1        TT_bit=0;
+ 247   1        SBUF=0x01;
+ 248   1        while(!TT_bit);
+ 249   1        TT_bit=0;
+ 250   1        SBUF=0x05;
+ 251   1        while(!TT_bit);
+ 252   1        TT_bit=0;
+ 253   1      
+ 254   1      }
+ 255          
+ 256          void ExitVideo(){
+ 257   1        TT_bit=0;
+ 258   1        SBUF=0xaa;
+ 259   1      
+ 260   1        while(!TT_bit);
+ 261   1        TT_bit=0;
+ 262   1        SBUF=0xbb;
+ 263   1        while(!TT_bit);
+ 264   1        TT_bit=0;
+ 265   1        SBUF=0x01;
+ 266   1        while(!TT_bit);
+ 267   1        TT_bit=0;
+ 268   1        SBUF=0x01;
+ 269   1        while(!TT_bit);
+ 270   1        TT_bit=0;
+ 271   1        //  minute=30;second=0;
+ 272   1        //   Write_date(0x00,0x10,0x00,0x00);
+ 273   1        //   Write_date(0x00,0x20,0x00,0x00);
+ 274   1        //   Write_date(0x00,0x30,0x00,0x00);
+ 275   1        //   Write_date(0x00,0x40,0x00,30);
+ 276   1        //   Write_date(0x00,0x50,0x30,0x00);
+ 277   1      }
+ 278          
+ 279          
+ 280          void dis_time(){
+ 281   1        char MT[2]; 
+ 282   1        MT[0]=((minute/10)<<4)+minute%10;
+ 283   1      
+ 284   1        MT[1]=((second/10)<<4)+second%10;
+ 285   1      
+ 286   1        Write_date(0x00,0x40,MT[0],MT[1]);
+ 287   1      
+ 288   1      }
+ 289          void deal_tm()
+ 290          {  
+ 291   1        deal_tm_bit=0;
+ 292   1        if(--second<0)
+ 293   1        {
+ 294   2          if(--minute>=0){second=59; Write_date(0x00,0x40,minute,0);}
+ 295   2          else {on_off=0;
+ 296   3          cutP_work_stop(3+cut_buff); 
+ 297   3          cutP_S1_S2(3);  
+ 298   3          BeepLong();time_out=1;  S2BUF=0xa0;
+ 299   3          //  Write_date(0x00,0x10,0x00,0x00);
+ 300   3          Write_date(0x00,0x40,0x30,0);
+ 301   3          Write_date(0x00,0x41,0x00,30);
+ 302   3          Write_date(0x00,0x50,0x00,0x00);
+ 303   3          Write_date(0x00,0x60,0x00,0x00);
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 6   
+
+ 304   3          Write_date(0x00,0x70,0x00,0x00);
+ 305   3          }
+ 306   2        }
+ 307   1        if(time_out==0)
+ 308   1          dis_time();
+ 309   1      }
+ 310          //=================================================================================
+ 311          void OPEN_picture()
+ 312          {
+ 313   1        int key=0;
+ 314   1        CE_buffer=0;   //清楚中英文界面数值
+ 315   1        cut_buff=0;   //清楚剪切图标增量数值
+ 316   1        shaping_DCF=1;  //开水氧笔切换电磁阀
+ 317   1        sonic_DCF  =1;  //关喷枪切换电磁阀  
+ 318   1        LED_B=1;LED_G=1;  //主页面和其他页面关闭S1，S2水瓶灯
+ 319   1        wate_time=0;FS_ONE=0; beep_sw=0;
+ 320   1        on_off=0;RF=0;cooling=0;  
+ 321   1        while(1)
+ 322   1        {
+ 323   2          if(key_bit){
+ 324   3            key_bit=0;
+ 325   3            key=((int)Get_Date[3]<<8)+Get_Date[2];
+ 326   3            switch(key){
+ 327   4            case 0x0000: CE_buffer = Get_Date[0];
+ 328   4              Page = 0x30;  
+ 329   4              if(CE_buffer==1){ cut_buff=12;}
+ 330   4              else            { cut_buff=0;}                                               
+ 331   4              return;
+ 332   4              break;
+ 333   4            }
+ 334   3          }
+ 335   2      
+ 336   2        }
+ 337   1      }
+ 338          //=================================================================================
+ 339          void main_picture()
+ 340          {
+ 341   1        int key=0;
+ 342   1        shaping_DCF=1;  //开水氧笔切换电磁阀
+ 343   1        sonic_DCF  =1;  //关喷枪切换电磁阀  
+ 344   1        wate_time=0;FS_ONE=0; beep_sw=0;
+ 345   1        on_off=0;RF=0;cooling=0;  
+ 346   1        LED_B=1;LED_G=1;  //主页面和其他页面关闭S1，S2水瓶灯
+ 347   1        while(1)
+ 348   1        {
+ 349   2          if(key_bit){
+ 350   3            key_bit=0;
+ 351   3            key=((int)Get_Date[3]<<8)+Get_Date[2];
+ 352   3            switch(key){
+ 353   4            case 0x0000:Page=Get_Date[0];return;break;
+ 354   4            }
+ 355   3          }
+ 356   2        }
+ 357   1      }
+ 358          //====================================================================================
+ 359          void Aqua_picture()   //01页面  水气泡页面
+ 360          {
+ 361   1        int key=0;
+ 362   1        minute=30;second=0;
+ 363   1        wate_time=0;FS_ONE=0; beep_sw=0;
+ 364   1        on_off=0;RF=0;cooling=0;
+ 365   1        shaping_DCF=0;  //开水氧笔切换电磁阀
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 7   
+
+ 366   1        sonic_DCF  =1;  //关喷枪切换电磁阀
+ 367   1        LED_B=0;LED_G=1;  //上电默认开通S1水瓶灯
+ 368   1        cutP_work_stop(3+cut_buff);  //剪切启动暂停标记复位
+ 369   1        delayus(1000);  
+ 370   1        cutP_S1_S2(3); //剪切S1,S2水瓶复位
+ 371   1        delayus(1000);  
+ 372   1        cutP_wate_HL(3+cut_buff);  //剪切水位报警复位
+ 373   1        delayus(1000);  
+ 374   1        Write_date(0x00,0x40,0x30,0);
+ 375   1        Write_date(0x00,0x41,0x00,30);
+ 376   1        Write_date(0x00,0x50,0x00,0x00);
+ 377   1      
+ 378   1        while(1)
+ 379   1        {  // 
+ 380   2      
+ 381   2          if(deal_tm_bit)
+ 382   2            deal_tm();
+ 383   2          if(time_out){time_out=0;minute=30;second=0;on_off=0;RF=0;cooling=0;}
+ 384   2          if(FS_ONE) 
+ 385   2          { cutP_wate_HL(11+cut_buff); 
+ 386   3          S2BUF=0xe0;FS_ONE=0;shaping_DCF=1;
+ 387   3          if(CE_buffer==1){ cutP_work_stop(29);} //剪切中文暂停
+ 388   3          else            { cutP_work_stop(27);} //剪切英文暂停 
+ 389   3          }
+ 390   2          if(beep_sw){ BEEP_wate();} 
+ 391   2          else{ cutP_wate_HL(3+cut_buff); }     //清除水位报警
+ 392   2          if(key_bit){
+ 393   3            key_bit=0;
+ 394   3            key=(Get_Date[3]<<8)+(int)Get_Date[2]&0x00ff;
+ 395   3            switch(key){
+ 396   4            case 0x00f0: if(!beep_sw){ on_off=Get_Date[0]&0x0f;}
+ 397   4                   if((on_off)&&(!wate_sw)){beep_sw=0;FS_ONE=0;cutP_wate_HL(3);S2BUF=0xe1;shaping_DCF=0;}
+ 398   4                   else{ S2BUF=0xe0;shaping_DCF=1;}                    
+ 399   4                   if(on_off){ pump=0;if(CE_buffer==1){ cutP_work_stop(28);}else{ cutP_work_stop(26);}}
+ 400   4                   else      { pump=1;if(CE_buffer==1){ cutP_work_stop(29);}else{ cutP_work_stop(27);}}
+ 401   4                   break;  //发送0XE0开气泵
+ 402   4            case 0x0041:minute=Get_Date[0];dis_time();break;
+ 403   4            case 0x0010:s1_s2=1;cutP_S1_S2(3);S2BUF=0x20;LED_B=0;LED_G=1;break; 
+ 404   4            case 0x0020:s1_s2=0;cutP_S1_S2(11);S2BUF=0x21;LED_B=1;LED_G=0;break;             
+ 405   4            case 0x00a0:S2BUF=0xa0;delayus(1000);on_off=0;RF=0;cooling=0;
+ 406   4              wate_time=0;beep_sw=0;LED_B=1;LED_G=1;
+ 407   4              s1_s2=1;pump=1;shaping_DCF=1;sonic_DCF=1;Page=0x30;return;break;
+ 408   4            }
+ 409   3      
+ 410   3          }
+ 411   2      
+ 412   2        }
+ 413   1      
+ 414   1      }
+ 415          //========================================================================================================
+             -==========================
+ 416          void Oxygun_picture()   //07页面  喷氧枪  不加切换电磁阀
+ 417          {
+ 418   1        int key=0;
+ 419   1      
+ 420   1        minute=30;second=0;
+ 421   1        wate_time=0;FS_ONE=0; beep_sw=0;
+ 422   1        on_off=0;RF=0;cooling=0;
+ 423   1        shaping_DCF=1;  //开水氧笔切换电磁阀
+ 424   1        sonic_DCF  =0;  //关喷枪切换电磁阀
+ 425   1        LED_B=1;LED_G=1;  //主页面和其他页面关闭S1，S2水瓶灯  
+ 426   1        cutP_work_stop(3+cut_buff);  //剪切启动暂停标记复位
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 8   
+
+ 427   1        delayus(1000);  
+ 428   1        //cutP_S1_S2(3); //剪切S1,S2水瓶复位
+ 429   1        //delayus(1000);  
+ 430   1        cutP_wate_HL(3+cut_buff);  //剪切水位报警复位
+ 431   1        delayus(1000);  
+ 432   1        Write_date(0x00,0x40,0x30,0);
+ 433   1        Write_date(0x00,0x41,0x00,30);
+ 434   1        Write_date(0x00,0x50,0x00,0x00);
+ 435   1      
+ 436   1        while(1)
+ 437   1        {  // 
+ 438   2      
+ 439   2          if(deal_tm_bit)
+ 440   2            deal_tm();
+ 441   2          if(time_out){time_out=0;minute=30;second=0;on_off=0;RF=0;cooling=0;}
+ 442   2          if(FS_ONE) 
+ 443   2          { cutP_wate_HL(11+cut_buff); 
+ 444   3          S2BUF=0xe0;FS_ONE=0;
+ 445   3          if(CE_buffer==1){ cutP_work_stop(29);} //剪切中文暂停
+ 446   3          else            { cutP_work_stop(27);} //剪切英文暂停 
+ 447   3          }
+ 448   2          if(beep_sw){ BEEP_wate();} 
+ 449   2          else{ cutP_wate_HL(3+cut_buff); }     //清除水位报警
+ 450   2          if(key_bit){
+ 451   3            key_bit=0;
+ 452   3            key=(Get_Date[3]<<8)+(int)Get_Date[2]&0x00ff;
+ 453   3            switch(key){
+ 454   4            case 0x00f0: if(!beep_sw){ on_off=Get_Date[0]&0x0f;}
+ 455   4                   if((on_off)&&(!wate_sw)){beep_sw=0;FS_ONE=0;cutP_wate_HL(3);S2BUF=0xe1;}
+ 456   4                   else{ S2BUF=0xe0;}                    
+ 457   4                   if(on_off){ pump=0;if(CE_buffer==1){ cutP_work_stop(28);}else{ cutP_work_stop(26);}}
+ 458   4                   else      { pump=1;if(CE_buffer==1){ cutP_work_stop(29);}else{ cutP_work_stop(27);}}
+ 459   4                   break;  //发送0XE0开气泵
+ 460   4            case 0x0041:minute=Get_Date[0];dis_time();break;
+ 461   4            case 0x0010:s1_s2=1;cutP_S1_S2(3);S2BUF=0x20;break; 
+ 462   4            case 0x0020:s1_s2=0;cutP_S1_S2(11);S2BUF=0x21;break;             
+ 463   4            case 0x00a0:S2BUF=0xa0;delayus(1000);on_off=0;RF=0;cooling=0;
+ 464   4              wate_time=0;beep_sw=0;
+ 465   4              s1_s2=1;pump=1;shaping_DCF=1;sonic_DCF=1;Page=0x30;return;break;
+ 466   4            }
+ 467   3      
+ 468   3          }
+ 469   2      
+ 470   2        }
+ 471   1      } 
+ 472          //========================================================================================================
+             -==========================
+ 473          /*void Oxygun_picture_02()    //07页面  喷氧枪  加切换电磁阀
+ 474          {
+ 475          int key=0;
+ 476          minute=30;second=0;
+ 477          on_off=0;RF=0;cooling=0;
+ 478          shaping_DCF=1;  //开水氧笔切换电磁阀
+ 479          sonic_DCF  =0;  //关喷枪切换电磁阀
+ 480          cutP_work_stop(3+cut_buff); 
+ 481          delayus(1000);  
+ 482          cutP_wate_HL(3+cut_buff);  //剪切水位报警复位 
+ 483          Write_date(0x00,0x40,0x30,0);
+ 484          Write_date(0x00,0x41,0x00,30);
+ 485          Write_date(0x00,0x50,0x00,0x00);
+ 486          
+ 487          while(1)
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 9   
+
+ 488          {  // 
+ 489          
+ 490          if(deal_tm_bit)
+ 491          deal_tm();
+ 492          if(time_out){time_out=0;minute=30;second=0;on_off=0;RF=0;cooling=0;}
+ 493          
+ 494          if(key_bit){
+ 495          key_bit=0;
+ 496          key=(Get_Date[3]<<8)+(int)Get_Date[2]&0x00ff;
+ 497          
+ 498          switch(key){
+ 499          case 0x00f0: on_off=Get_Date[0]&0x0f; S2BUF=0xe0+on_off;
+ 500          if(on_off){ pump=0;if(CE_buffer==1){ cutP_work_stop(28);}else{ cutP_work_stop(26);}}
+ 501          else      { pump=1;if(CE_buffer==1){ cutP_work_stop(29);}else{ cutP_work_stop(27);}}
+ 502          break;   //发送0XE0开气泵
+ 503          case 0x0041:minute=Get_Date[0];dis_time();BEEP();break;
+ 504          case 0x00a0:S2BUF=0xa0;delayus(1000);on_off=0;RF=0;cooling=0;pump=1;shaping_DCF=1;sonic_DCF=1;Page=0x30;re
+             -turn;break;
+ 505          }
+ 506          
+ 507          }
+ 508          
+ 509          }
+ 510          
+ 511          }*/
+ 512          //============================================
+ 513          void FaceRF_picture()    //02页面 面部RF
+ 514          {
+ 515   1      
+ 516   1        int key=0;
+ 517   1        minute=30;second=0;
+ 518   1        on_off=0;RF=0;cooling=0;
+ 519   1        shaping_DCF=1;  //开水氧笔切换电磁阀
+ 520   1        sonic_DCF  =1;  //关喷枪切换电磁阀
+ 521   1        LED_B=1;LED_G=1;  //主页面和其他页面关闭S1，S2水瓶灯  
+ 522   1        cutP_work_stop(3+cut_buff);   
+ 523   1        Write_date(0x00,0x40,0x30,0);
+ 524   1        Write_date(0x00,0x41,0x00,30);
+ 525   1        Write_date(0x00,0x50,0x00,0x00);
+ 526   1        Write_date(0x00,0x60,0x00,0x00);
+ 527   1        while(1)
+ 528   1        {  // 
+ 529   2      
+ 530   2          if(deal_tm_bit)
+ 531   2            deal_tm();
+ 532   2          if(time_out){time_out=0;minute=30;second=0;on_off=0;RF=0;vac_mode=0;}
+ 533   2      
+ 534   2          if(key_bit){
+ 535   3            key_bit=0;
+ 536   3            key=(Get_Date[3]<<8)+(int)Get_Date[2]&0x00ff;
+ 537   3      
+ 538   3            switch(key){
+ 539   4            case 0x00f0: on_off=Get_Date[0]&0x0f;S2BUF=0xf0+on_off;
+ 540   4              if(on_off){ if(CE_buffer==1){ cutP_work_stop(28);}else{ cutP_work_stop(26);}}
+ 541   4              else      { if(CE_buffer==1){ cutP_work_stop(29);}else{ cutP_work_stop(27);}}  
+ 542   4              break;
+ 543   4            case 0x0050:RF=Get_Date[0];S2BUF=0x10+RF;break;   //发送0x10|强度给下板
+ 544   4            case 0x0041:minute=Get_Date[0];dis_time();break;
+ 545   4            case 0x00a0:S2BUF=0xa0;delayus(1000);on_off=0;RF=0;cooling=0;BEEP();Page=0x30;return;break;
+ 546   4            }
+ 547   3      
+ 548   3          }
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 10  
+
+ 549   2      
+ 550   2        }
+ 551   1      
+ 552   1      }
+ 553          //====================================================================================================
+ 554          void Cooling_picture()  //03 冰
+ 555          {
+ 556   1        int key=0;
+ 557   1        minute=30;second=0;
+ 558   1        on_off=0;RF=0;cooling=0;
+ 559   1        shaping_DCF=1;  //开水氧笔切换电磁阀
+ 560   1        sonic_DCF  =1;  //关喷枪切换电磁阀
+ 561   1        LED_B=1;LED_G=1;  //主页面和其他页面关闭S1，S2水瓶灯  
+ 562   1        cutP_work_stop(3+cut_buff);   
+ 563   1        Write_date(0x00,0x40,0x30,0);
+ 564   1        Write_date(0x00,0x41,0x00,30);
+ 565   1        Write_date(0x00,0x50,0x00,0x00);
+ 566   1        Write_date(0x00,0x60,0x00,0x00);
+ 567   1      
+ 568   1        while(1)
+ 569   1        {  // 
+ 570   2      
+ 571   2          if(deal_tm_bit)
+ 572   2            deal_tm();
+ 573   2          if(time_out){time_out=0;minute=30;second=0;on_off=0;RF=0;vac_mode=0;}
+ 574   2      
+ 575   2          if(key_bit){
+ 576   3            key_bit=0;
+ 577   3            key=(Get_Date[3]<<8)+(int)Get_Date[2]&0x00ff;
+ 578   3      
+ 579   3            switch(key){
+ 580   4              //  case 0x0000:Page=Get_Date[0];return;break;
+ 581   4            case 0x00f0: on_off=Get_Date[0]&0x0f;S2BUF=0xf0+on_off;
+ 582   4              if(on_off){ if(CE_buffer==1){ cutP_work_stop(28);}else{ cutP_work_stop(26);}}
+ 583   4              else      { if(CE_buffer==1){ cutP_work_stop(29);}else{ cutP_work_stop(27);}}        
+ 584   4              break;
+ 585   4            case 0x0041:minute=Get_Date[0];dis_time();break;
+ 586   4            case 0x0050:cooling=Get_Date[0];S2BUF=0x60|cooling;break; //发送0x60|强度给下板
+ 587   4            case 0x00a0:S2BUF=0xa0;delayus(1000);cooling=0;on_off=0;RF=0;cooling=0;Page=0x30;return;break;
+ 588   4            }
+ 589   3      
+ 590   3          }
+ 591   2      
+ 592   2        }
+ 593   1      
+ 594   1      }
+ 595          //====================================================================================================
+ 596          void check_picture()   //04页面   摄像头 检测
+ 597          {
+ 598   1      
+ 599   1        int key=0;
+ 600   1        minute=30;second=0;
+ 601   1        on_off=0;RF=0;vac_mode=0;
+ 602   1        LED_B=1;LED_G=1;  //主页面和其他页面关闭S1，S2水瓶灯  
+ 603   1        S2BUF=0xC1;
+ 604   1        GoToVideo();
+ 605   1        while(1)
+ 606   1        {  // 
+ 607   2          if(deal_tm_bit)
+ 608   2            deal_tm();
+ 609   2          if(time_out){time_out=0;minute=30;second=0;on_off=0;RF=0;vac_mode=0;}
+ 610   2          if(key_bit){
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 11  
+
+ 611   3            key_bit=0;
+ 612   3            key=(Get_Date[3]<<8)+(int)Get_Date[2]&0x00ff;
+ 613   3            switch(key){
+ 614   4            case 0x00b0:ExitVideo();S2BUF=0xC2;delayus(1000);on_off=0;RF=0;cooling=0;Page=0x30;return;break;
+ 615   4            }
+ 616   3      
+ 617   3          }
+ 618   2      
+ 619   2        }
+ 620   1      } 
+ 621          //========================================================================================================
+             -=======================
+ 622          void bio222_picture()   //05  微电
+ 623          {
+ 624   1      
+ 625   1        int key=0;
+ 626   1        minute=30;second=0;
+ 627   1        on_off=0;RF=0;
+ 628   1        shaping_DCF=1;  //开水氧笔切换电磁阀
+ 629   1        sonic_DCF  =1;  //关喷枪切换电磁阀
+ 630   1        LED_B=1;LED_G=1;  //主页面和其他页面关闭S1，S2水瓶灯  
+ 631   1        cutP_work_stop(3+cut_buff);   
+ 632   1        Write_date(0x00,0x40,0x30,0);
+ 633   1        Write_date(0x00,0x41,0x00,30);
+ 634   1        Write_date(0x00,0x50,0x00,0x00);
+ 635   1        Write_date(0x00,0x60,0x00,0x00);
+ 636   1        Write_date(0x00,0x70,0x00,0x00);
+ 637   1        while(1)
+ 638   1        {  // 
+ 639   2          if(deal_tm_bit)
+ 640   2            deal_tm();
+ 641   2          if(time_out){time_out=0;minute=30;second=0;on_off=0;RF=0;vac_mode=0;}
+ 642   2          if(key_bit){
+ 643   3            key_bit=0;
+ 644   3            key=(Get_Date[3]<<8)+(int)Get_Date[2]&0x00ff;
+ 645   3            switch(key){
+ 646   4            case 0x00f0:on_off=Get_Date[0]&0x0f;S2BUF=0xf0+on_off;
+ 647   4              if(on_off){ if(CE_buffer==1){ cutP_work_stop(28);}else{ cutP_work_stop(26);}}
+ 648   4              else      { if(CE_buffer==1){ cutP_work_stop(29);}else{ cutP_work_stop(27);}}                    
+ 649   4              break;
+ 650   4            case 0x0060:vac_mode=Get_Date[0];S2BUF=0x90+vac_mode;break;
+ 651   4            case 0x0050:RF=Get_Date[0];S2BUF=0x80+RF;break;
+ 652   4            case 0x0041:minute=Get_Date[0];dis_time();break;
+ 653   4            case 0x00a0:S2BUF=0xa0;delayus(1000);on_off=0;RF=0;vac_mode=0;Page=0x30;return;break;
+ 654   4            }
+ 655   3          }
+ 656   2      
+ 657   2        }
+ 658   1      
+ 659   1      }
+ 660          //========================================================================================================
+             -====================
+ 661          void bio333_picture()   //06 微电经络
+ 662          {
+ 663   1        int key=0;
+ 664   1        minute=30;second=0;
+ 665   1        on_off=0;RF=0;
+ 666   1        shaping_DCF=1;  //开水氧笔切换电磁阀
+ 667   1        sonic_DCF  =1;  //关喷枪切换电磁阀
+ 668   1        LED_B=1;LED_G=1;  //主页面和其他页面关闭S1，S2水瓶灯  
+ 669   1        cutP_work_stop(3+cut_buff);   
+ 670   1        Write_date(0x00,0x40,0x30,0);
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 12  
+
+ 671   1        Write_date(0x00,0x41,0x00,30);
+ 672   1        Write_date(0x00,0x50,0x00,0x00);
+ 673   1        Write_date(0x00,0x60,0x00,0x00);
+ 674   1        Write_date(0x00,0x70,0x00,0x00);
+ 675   1        while(1)
+ 676   1        {  // 
+ 677   2          if(deal_tm_bit)
+ 678   2            deal_tm();
+ 679   2          if(time_out)
+ 680   2          {
+ 681   3            time_out=0;
+ 682   3            minute=30;
+ 683   3            second=0;
+ 684   3            on_off=0;
+ 685   3            RF=0;
+ 686   3            vac_mode=0;
+ 687   3          }
+ 688   2          if(key_bit)
+ 689   2          {
+ 690   3            key_bit=0;
+ 691   3            key=(Get_Date[3]<<8)+(int)Get_Date[2]&0x00ff;
+ 692   3            switch(key)
+ 693   3            {
+ 694   4            case 0x00f0:
+ 695   4              {
+ 696   5                on_off=Get_Date[0]&0x0f;S2BUF=0xf0+on_off;
+ 697   5                if(on_off)
+ 698   5                { 
+ 699   6                  if(CE_buffer==1)
+ 700   6                  { cutP_work_stop(28);}
+ 701   6                  else
+ 702   6                  { cutP_work_stop(26);}
+ 703   6                }
+ 704   5                else      
+ 705   5                {
+ 706   6                  if(CE_buffer==1)
+ 707   6                  { cutP_work_stop(29);}
+ 708   6                  else
+ 709   6                  { cutP_work_stop(27);}
+ 710   6                }                    
+ 711   5                break;
+ 712   5              }
+ 713   4            case 0x0060:
+ 714   4              {
+ 715   5                vac_mode=Get_Date[0];
+ 716   5                S2BUF=0x90+vac_mode;
+ 717   5                break;
+ 718   5              }
+ 719   4            case 0x0050:
+ 720   4              {
+ 721   5                RF=Get_Date[0];
+ 722   5                S2BUF=0x70+RF;
+ 723   5                break;
+ 724   5              }       
+ 725   4            case 0x0041:
+ 726   4              {
+ 727   5                minute=Get_Date[0];
+ 728   5                dis_time();
+ 729   5                break;
+ 730   5              }
+ 731   4            case 0x00a0:
+ 732   4              {
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 13  
+
+ 733   5                S2BUF=0xa0;
+ 734   5                delayus(1000);
+ 735   5                on_off=0;RF=0;
+ 736   5                vac_mode=0;
+ 737   5                Page=0x30;
+ 738   5                return;
+ 739   5                break;
+ 740   5              }
+ 741   4            }
+ 742   3      
+ 743   3          }
+ 744   2      
+ 745   2        }
+ 746   1      
+ 747   1      }
+ 748          //========================================================================================================
+             -==========================
+ 749          /*void eyes_picture()   //05页面  眼部射频  
+ 750          {
+ 751          
+ 752          int key=0;
+ 753          minute=30;second=0;
+ 754          on_off=0;RF=0;cooling=0;
+ 755          shaping_DCF=1;  //开水氧笔切换电磁阀
+ 756          sonic_DCF  =1;  //关喷枪切换电磁阀
+ 757          cutP_work_stop(3+cut_buff);     
+ 758          Write_date(0x00,0x40,0x30,0);
+ 759          Write_date(0x00,0x41,0x00,30);
+ 760          Write_date(0x00,0x50,0x00,0x00);
+ 761          Write_date(0x00,0x60,0x00,0x00);
+ 762          
+ 763          while(1)
+ 764          {  // 
+ 765          
+ 766          if(deal_tm_bit)
+ 767          deal_tm();
+ 768          if(time_out){time_out=0;minute=30;second=0;on_off=0;RF=0;vac_mode=0;}
+ 769          
+ 770          if(key_bit){
+ 771          key_bit=0;
+ 772          key=(Get_Date[3]<<8)+(int)Get_Date[2]&0x00ff;
+ 773          
+ 774          switch(key){
+ 775          
+ 776          //  case 0x0000:Page=Get_Date[0];return;break;
+ 777          case 0x00f0: on_off=Get_Date[0]&0x0f;S2BUF=0xf0+on_off;
+ 778          if(on_off){ if(CE_buffer==1){ cutP_work_stop(28);}else{ cutP_work_stop(26);}}
+ 779          else      { if(CE_buffer==1){ cutP_work_stop(29);}else{ cutP_work_stop(27);}}        
+ 780          break;
+ 781          case 0x0050:RF=Get_Date[0];S2BUF=0x50+RF;break;   //发送0x50|强度给下板
+ 782          case 0x0041:minute=Get_Date[0];dis_time();break;
+ 783          case 0x00a0:S2BUF=0xa0;delayus(1000);on_off=0;RF=0;cooling=0;Page=0x30;return;break;
+ 784          }
+ 785          
+ 786          }
+ 787          
+ 788          }
+ 789          
+ 790          }
+ 791          void bio_picture()  //04页面   BIO摄像头
+ 792          {
+ 793          
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 14  
+
+ 794          int key=0;
+ 795          minute=30;second=0;
+ 796          on_off=0;RF=0;vac_mode=0;
+ 797          shaping_DCF=1;  //开水氧笔切换电磁阀
+ 798          sonic_DCF  =1;  //关喷枪切换电磁阀
+ 799          cutP_work_stop(2);    
+ 800          Write_date(0x00,0x40,0x30,0);
+ 801          Write_date(0x00,0x41,0x00,30);
+ 802          Write_date(0x00,0x50,0x00,0x00);
+ 803          Write_date(0x00,0x60,0x00,0x00);
+ 804          Write_date(0x00,0x70,0x00,0x00);
+ 805          while(1)
+ 806          {  // 
+ 807          
+ 808          if(deal_tm_bit)
+ 809          deal_tm();
+ 810          if(time_out){time_out=0;minute=30;second=0;on_off=0;RF=0;vac_mode=0;}
+ 811          
+ 812          if(key_bit){
+ 813          key_bit=0;
+ 814          key=(Get_Date[3]<<8)+(int)Get_Date[2]&0x00ff;
+ 815          
+ 816          switch(key){
+ 817          case 0x00f0: on_off=Get_Date[0]&0x0f;S2BUF=0xf0+on_off;
+ 818          if(on_off){ if(CE_buffer==1){ cutP_work_stop(28);}else{ cutP_work_stop(26);}}
+ 819          else      { if(CE_buffer==1){ cutP_work_stop(29);}else{ cutP_work_stop(27);}}          
+ 820          break;
+ 821          case 0x0060:vac_mode=Get_Date[0];S2BUF=0x90+vac_mode;break;
+ 822          case 0x00b0:on_off=0;S2BUF=0xc0;cutP_work_stop(11);vac_mode=0;RF=0;GoToVideo();break;
+ 823          case 0x00c0:ExitVideo();S2BUF=0xa0;on_off=0;Write_date(0x00,0x50,0x00,0x00);Write_date(0x00,0x60,0x00,0x00
+             -);
+ 824          cutP_work_stop(11);RF=0;break;
+ 825          case 0x0050:RF=Get_Date[0];S2BUF=0x70+RF;break;
+ 826          case 0x0041:minute=Get_Date[0];dis_time();break;
+ 827          case 0x00a0:S2BUF=0xa0;delayus(1000);on_off=0;RF=0;vac_mode=0;Page=0x30;return;break;
+ 828          }
+ 829          
+ 830          }
+ 831          
+ 832          }
+ 833          
+ 834          }*/
+ 835          //=================================================================================================
+ 836          void main(void)
+ 837          {
+ 838   1        //  unsigned char k=0,i=0,j=0;
+ 839   1        CPU_Init();
+ 840   1        P4SW=0x70;
+ 841   1        P4M0=0xFF;
+ 842   1        P4M1=0;
+ 843   1        P0M0=0xff;
+ 844   1        P0M1=0;
+ 845   1        LED_B=1;
+ 846   1        LED_G=1;  //主页面和其他页面关闭S1，S2水瓶灯  
+ 847   1        BEEP();
+ 848   1        beep=0;
+ 849   1        delayus(10000);
+ 850   1        beep=0;
+ 851   1        delayus(10000);
+ 852   1        beep=0;
+ 853   1        delayus(10000);  //
+ 854   1        while(1)
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 15  
+
+ 855   1        {
+ 856   2          switch(Page)
+ 857   2          {
+ 858   3            case 0x00:OPEN_picture();break;      //开机logo面
+ 859   3            case 0x30:main_picture();break;      //主页面  
+ 860   3            case 0x31:Aqua_picture();break;      //01水氧笔页面
+ 861   3            case 0x32:FaceRF_picture();break;    //02面部RF
+ 862   3            case 0x33:Cooling_picture();break;     //03冰
+ 863   3            case 0x34:check_picture();break;       //04摄像头
+ 864   3            case 0x35:bio222_picture();break;     //05微电
+ 865   3            case 0x36:bio333_picture();break;     //06经络
+ 866   3            case 0x37:Oxygun_picture();break;     //07喷氧枪
+ 867   3          }
+ 868   2        }
+ 869   1      }
+ 870          
+ 871          void com_interrupt(void) interrupt 4 using 3
+ 872          {
+ 873   1        if(RI)                      //处理接收中断
+ 874   1        {
+ 875   2          RI=0;                    //清除中断标志位  
+ 876   2          if(DD==0)
+ 877   2          {
+ 878   3            if(xx<3)
+ 879   3            {
+ 880   4              xx++;
+ 881   4              pp[xx]=SBUF;  
+ 882   4              if(pp[1]!=0x5A)xx=0; 
+ 883   4            }
+ 884   3            else 
+ 885   3            { 
+ 886   4              W_OR_R=pp[4]=SBUF;
+ 887   4              if(pp[1]==0x5A)
+ 888   4              { 
+ 889   5                DD=pp[3]-1; //W_OR_R=Buffer[4];
+ 890   5                pp=pp+5;
+ 891   5              }
+ 892   4              else{ xx=0;}  
+ 893   4            }
+ 894   3          }
+ 895   2          else
+ 896   2          {
+ 897   3            DD--;
+ 898   3            *pp++=SBUF;
+ 899   3            if(DD==0)
+ 900   3            {
+ 901   4              xx=0;
+ 902   4              key_bit=1;
+ 903   4              Get_Date[0]=*--pp;
+ 904   4              Get_Date[1]=*--pp;  
+ 905   4              pp--;
+ 906   4              Get_Date[2]=*--pp;
+ 907   4              Get_Date[3]=*--pp;
+ 908   4              pp=Buffer;//SBUF=0x88;
+ 909   4              beep=0;
+ 910   4            } //0低字节，1高字节
+ 911   3      
+ 912   3          }
+ 913   2        }
+ 914   1        if(TI)                      //处理接收中断
+ 915   1        {
+ 916   2          TI=0;                    //清除中断标志位   
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 16  
+
+ 917   2          TT_bit=1;
+ 918   2        }
+ 919   1      }
+ 920          
+ 921          void time1 (void) interrupt 3
+ 922          {
+ 923   1      
+ 924   1      }
+ 925          
+ 926          void Uart2 () interrupt 8 using 1
+ 927          {
+ 928   1        if(S2CON&0x01)
+ 929   1        {
+ 930   2          S2CON&=~0x01;
+ 931   2        }
+ 932   1        if(S2CON&0x02)
+ 933   1        {
+ 934   2          S2CON&=~0x02;
+ 935   2        }
+ 936   1      }
+ 937          
+ 938          void time0 (void) interrupt 1
+ 939          {//  unsigned char xx;
+ 940   1        //static unsigned char cl=0;
+ 941   1        TF0=0;
+ 942   1        TH0 =(65536-1000)/256;
+ 943   1        TL0 =(65536-1000)%256;
+ 944   1        BEEP();
+ 945   1        if(on_off)
+ 946   1        {
+ 947   2          if(++time_count>2000)
+ 948   2          {
+ 949   3            time_count=0;
+ 950   3            deal_tm_bit=1;
+ 951   3          }
+ 952   2        }
+ 953   1        if((wate_sw)&&((Page==0x31)||(Page==0x37)))  //水位检测，低电平有效
+ 954   1        { 
+ 955   2          if(++wate_time==1000)
+ 956   2          {
+ 957   3            if(wate_sw)
+ 958   3            {
+ 959   4              wate_time=1100;
+ 960   4              on_off =0;
+ 961   4              beep_sw=1;
+ 962   4              FS_ONE=1;
+ 963   4            }  //水位检测，低电平有效 
+ 964   3            else
+ 965   3            {
+ 966   4              wate_time=0;
+ 967   4              beep_sw=0;
+ 968   4            }
+ 969   3          }  
+ 970   2        } 
+ 971   1        else
+ 972   1        {
+ 973   2          wate_time=0;
+ 974   2          beep_sw=0;
+ 975   2        } 
+ 976   1      }
+
+
+C51 COMPILER V9.54   240X128                                                               08/01/2017 11:05:03 PAGE 17  
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   4041    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     85    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      5    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

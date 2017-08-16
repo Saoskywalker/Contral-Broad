@@ -1,0 +1,5 @@
+"STARTUP.obj",
+"240x128.obj",
+"key.obj" 
+TO "240x128" 
+RAMSIZE(256) 
